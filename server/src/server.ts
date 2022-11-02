@@ -51,7 +51,7 @@ async function bootstrap(){
             }
         })
 
-        return reply.status(201).send(code)
+        return reply.status(201).send({code})
 
         
     })
