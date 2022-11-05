@@ -1,62 +1,40 @@
 import Fastify from 'fastify'
+
 import cors from '@fastify/cors'
-import { z } from 'zod'
-import { PrismaClient } from '@prisma/client'
-import ShortUniqueId from 'short-unique-id'
+import jwt from '@fastify/jwt'
 
-const prisma = new PrismaClient({
-    log: ['query'],
-})
+import { poolRoutes } from './routes/pool'
+import { userRoutes } from './routes/user'
+import { guessRoutes } from './routes/guess'
+import { authRoutes } from './routes/auth'
+import { gameRoutes } from './routes/game'
 
-async function bootstrap(){
+const start = async () => {
     const fastify = Fastify({
         logger: true,
     })
 
-    await fastify.register(cors, {
-        origin: true
-    })
-
-    fastify.get('/pools/count', async () => {
-        const count = await prisma.pool.count()
-
-        return { count }
-    })
-
-    fastify.get('/users/count', async () => {
-        const count = await prisma.user.count()
-
-        return { count }
-    })
-
-    fastify.get('/guesses/count', async () => {
-        const count = await prisma.guess.count()
-
-        return { count }
-    })
-
-    fastify.post('/pools', async (request, reply) => {
-        const createPoolBody = z.object({
-            title: z.string(),
+    try{
+        await fastify.register(cors, {
+            origin: true
         })
 
-        const { title } = createPoolBody.parse(request.body)
-
-        const generate = new ShortUniqueId({ length: 6 })
-        const code = String(generate()).toUpperCase()
-        await prisma.pool.create({
-            data: {
-                title,
-                code: code
-            }
+        await fastify.register(jwt, {
+            secret: String(process.env.JWT_SECRET)
         })
 
-        return reply.status(201).send({code})
+        await fastify.register(authRoutes)
+        await fastify.register(gameRoutes)
+        await fastify.register(guessRoutes)
+        await fastify.register(poolRoutes)
+        await fastify.register(userRoutes)
 
-        
-    })
+        await fastify.listen({ port : 3333, host: '0.0.0.0'})
+    } catch (err) {
+        fastify.log.error(err)
 
-    await fastify.listen({ port : 3333/*, host: '0.0.0.0'*/})
+        process.exit(1)
+    }
 }
 
-bootstrap()
+start()
